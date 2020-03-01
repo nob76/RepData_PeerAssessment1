@@ -28,11 +28,21 @@ filter(act_data_by_interval, avg_steps==max(avg_steps))
 
 ## METHOD TO IMPUTE MISSING STEPS DATA
 
-
-
-
-
-
-
-act_data_by_interval_day <- act_data %>% group_by(day, interval) %>%
+    # AVERAGE NO. OF STEPS BY DAY AND INTERVAL
+act_data %>% 
+    group_by(day, interval) %>%
     summarize(avg_steps=mean(steps, na.rm=TRUE))
+
+    #IMPUTE AVGERGE NO. OF STEPS BASED ON AVERAGE FOR SIMILAR DAY AND INTERVAL
+
+
+
+
+
+
+
+
+
+
+
+
