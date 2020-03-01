@@ -21,13 +21,16 @@ A review of the initial data set (using str function) is as follows:
 str(act_data)
 ```
 
-The variables steps and interval are integers which is suitable. The date variable is a factor which needs to be transformed into a date for proper analysis.
+The variables steps and interval are integers which is suitable. The interval variable is divided into 5-minute segments that re-set every hour. For example, interval 55 is 55 minutes after midnight; 100 is 1AM; 105 is 1:05AM; 2355 is 11:55PM.
+
+The date variable is a factor which needs to be transformed into a date for proper analysis. I've also added a variable for day so that the data can be analyzed based on weekday vs. weekend.
 
 ```{r warning=FALSE, message=FALSE}
 library(lubridate)
 ```
 ```{r}
 act_data$date <- as_date(act_data$date)
+act_data$day <- wday(act_data$date, label=TRUE)
 ```
 
 The summary of act_data is now as follows:
@@ -36,6 +39,17 @@ The summary of act_data is now as follows:
 summary(act_data)
 ```
 Perhaps most interesting is that there were 0 steps taken in more than half of all 5-minute intervals. Also noted is that of `r dim(act_data)[1]` observations, there were `r sum(is.na(act_data$steps))` missing values (`r sprintf("%1.1f%%", mean(is.na(act_data$steps))*100)` of the total).
+
+A breakdown of missing values by day of week is as follows:
+
+```{r warning=FALSE, message=FALSE}
+library(dplyr)
+```
+```{r}
+act_data %>% filter(is.na(steps)) %>%
+            group_by(day) %>%
+            summarize(no_na=sum(is.na(steps)))
+```
 
 ## What is mean total number of steps taken per day?
 
@@ -47,7 +61,25 @@ round(sum(act_data$steps, na.rm=TRUE)/as.numeric(max(act_data$date)-min(act_data
 
 ## What is the average daily activity pattern?
 
+To examine the average daily activity pattern, I averaged the number of steps in each 5-minute interval across the study period with the results stored in act_data_by_interval. **Again, this calculation excludes missing data.**
 
+```{r}
+act_data_by_interval <- act_data %>% 
+                        group_by(interval) %>%
+                        summarize(avg_steps=mean(steps, na.rm=TRUE))
+```
+
+The daily activity pattern is plotted as follows:
+
+```{r fig.height=4, fig.width=4, fig.align="center"}
+plot(act_data_by_interval$interval, act_data_by_interval$avg_steps, type="l", main="No. of Steps by Interval\n Over Study Period", xlab="5-Minute Interval", ylab="Avg. No. of Steps", col="blue", lwd=2)
+```
+
+The interval with the highest number of average steps is determined as follows:
+
+```{r}
+filter(act_data_by_interval, avg_steps==max(avg_steps))
+```
 
 ## Imputing missing values
 
