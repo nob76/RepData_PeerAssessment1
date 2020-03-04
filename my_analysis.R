@@ -74,8 +74,6 @@
 
     #IMPUTE NO. OF STEPS BASED ON AVERAGE FOR SIMILAR DAY AND INTERVAL
 
-    na_rows <- which(is.na(act_data$steps)) #vector of rows with na's
-    
     act_data <- left_join(act_data, act_data_by_day_interval)
     
     act_data$imputed_steps <- ifelse(is.na(act_data$steps),
@@ -110,7 +108,102 @@
                   avg_impspd=mean(imputed_steps, na.rm=TRUE)*288
                   )
 
+## DAY TYPE ANALYSIS
+    
+    # CREATE NEW FACTOR VARIABLE
+    act_data$day_type <- factor(ifelse(act_data$day %in% c('Sat', 'Sun'), "Weekend", "Weekday"),
+                                levels=c("Weekday", "Weekend")
+                                )
 
+    # GROUP BY DAY TYPE AND INTERVAL
+    act_data_by_day_type_interval <- act_data %>% 
+                                     group_by(day_type, interval) %>%
+                                     summarize(avg_impspi=mean(imputed_steps, na.rm=TRUE))
+    
+    # MAKE PANEL PLOT
+    library(lattice)
+    xyplot(avg_impspi~interval | day_type, data=act_data_by_day_type_interval, type="l", layout=c(1,2), xlab="Interval", ylab="Avg. No. of Steps")
+    
+    # ANALYZE DIFFERENCE IN STEPS FOR EACH INTERVAL
+    weekday_pattern <- act_data_by_day_type_interval[act_data_by_day_type_interval$day_type=="Weekday", c("interval","avg_impspi")]
+    
+    weekend_pattern <- act_data_by_day_type_interval[act_data_by_day_type_interval$day_type=="Weekend", c("interval","avg_impspi")]
+    
+    delta <- weekend_pattern$avg_impspi - weekday_pattern$avg_impspi
+    
+    
+    barplot(delta, names.arg= unique(weekend_pattern$interval), xlab="Interval", ylab="Weekend Steps - Weekday Steps", main="Weekend Pattern vs. Weekday Pattern", col="blue", border="black", ylim=c(-200, 200), axes=TRUE)
+    
+    ggplot(aes(x=unique(weekend_pattern$interval), y=delta)) + geom_bar(data=delta)
+    
+    qplot(x=unique(weekend_pattern$interval), 
+          y=delta, geom="col", 
+          xlab="Interval", 
+          ylab="Weekend Steps - Weekday Steps", 
+          main="Weekend Pattern vs. Weekday Pattern", 
+          ylim=c(-200, 200)
+    )
+    
+## CLUSTERING
+    
+    # CREATE NEW FACTOR VARIABLES
+    act_data$tod <- factor(ifelse(act_data$interval <= 500, "Early Morning", 
+                                  ifelse(between(act_data$interval, 505, 900), "Morning Rush",
+                                  ifelse(between(act_data$interval, 905, 1700), "Work Hours",
+                                  ifelse(between(act_data$interval, 1705,2000), "Early Evening",
+                                  "Evening")))),
+                                  levels=c("Early Morning", "Morning Rush", "Work Hours", "Early                                                 Evening", "Evening")
+                            )
+    
+    act_data$dtype_tod <- paste(act_data$day_type, act_data$tod, sep=" ")
+    
+    
+    # CREATE DENDROGRAM
+    act_data %>%
+        select(interval, imputed_steps) %>%
+        dist() %>%
+        hclust() %>%
+        as.dendrogram() -> dg
+    
+    #MODIFY DENDROGRAM
+    library(dendextend)
+    
+    dg %>% 
+        set("labels_cex", 0.25) %>%
+        plot()
+    
+    mycols_tod <- ifelse(act_data$tod == "Early Morning", "red",
+                         ifelse(act_data$tod=="Morning Rush", "blue",
+                                ifelse(act_data$tod=="Work Hours", "cyan",
+                                       ifelse(act_data$tod=="Early Evening", "green",
+                                              "brown"))))
+    
+    mycols_dtypetod <- ifelse(act_data$dtype_tod == "Weekday Early Morning", "pink",
+                         ifelse(act_data$dtype_tod=="Weekday Morning Rush", "lightblue",
+                                ifelse(act_data$dtype_tod=="Weekday Work Hours", "lightyellow",
+                                       ifelse(act_data$dtype_tod=="Weekday Early Evening", "lightgreen",
+                                              ifelse(act_data$dtype_tod=="Weekday Evening", "tan3",
+                        ifelse(act_data$dtype_tod == "Weekend Early Morning", "darkred",
+                               ifelse(act_data$dtype_tod=="Weekend Morning Rush", "darkblue",
+                                      ifelse(act_data$dtype_tod=="Weekend Work Hours", "goldenrod",
+                                             ifelse(act_data$dtype_tod=="Weekend Early Evening",                                                            "darkgreen",
+                                                        "brown")))))))))
+    
+    the_bars <- cbind(mycols_tod, mycols_dtypetod)
+    colored_bars(colors = the_bars, dend = dg)
+    
+    #KMEANS
+    
+    act_data[,c("interval","imputed_steps")] %>% 
+        kmeans(centers=5, nstart=20) -> act_data_klust5
+    
+    act_data$klust5 <- as.factor(act_data_klust5$cluster)
+    
+    table(act_data_klust5$cluster, act_data$tod)
+    
+    ggplot(data=act_data, aes(interval, imputed_steps, color=act_data$klust5)) + geom_point()
+    
+    
 
 
 

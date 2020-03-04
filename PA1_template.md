@@ -342,8 +342,66 @@ ggplot(data=act_data_by_date, aes(act_data_by_date$imputed_steps)) + geom_histog
 
 <img src="PA1_template_files/figure-html/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
 
-
-
-
-
 ## Are there differences in activity patterns between weekdays and weekends?
+
+To answer this question, I constructed a panel plot comparing average steps per interval for weekdays and weekend separately. First, I created a factor variable day_type to categorize a day as a weekday or weekend.
+
+
+```r
+act_data$day_type <- factor(ifelse(act_data$day %in% c('Sat', 'Sun'), "Weekend", "Weekday"),
+                                levels=c("Weekday", "Weekend")
+                                )
+```
+
+Then, I grouped the data by day_type and interval and calculated the average for each day_type and interval:
+
+
+```r
+act_data_by_day_type_interval <- act_data %>% 
+                                     group_by(day_type, interval) %>%
+                                     summarize(avg_impspi=mean(imputed_steps, na.rm=TRUE))
+```
+
+Then, I created a panel plot:
+
+
+```r
+library(lattice)
+```
+
+```r
+xyplot(avg_impspi~interval | day_type, data=act_data_by_day_type_interval, type="l", layout=c(1,2), xlab="Interval", ylab="Avg. No. of Steps")
+```
+
+<img src="PA1_template_files/figure-html/unnamed-chunk-25-1.png" style="display: block; margin: auto;" />
+
+Finally, I created two datasets with step data for weekdays and weekends. The difference between these vectors was saved in a vector name delta.
+
+
+```r
+weekday_pattern <- act_data_by_day_type_interval[act_data_by_day_type_interval$day_type=="Weekday", c("interval","avg_impspi")]
+
+weekend_pattern <- act_data_by_day_type_interval[act_data_by_day_type_interval$day_type=="Weekend", c("interval","avg_impspi")]
+
+delta <- weekend_pattern$avg_impspi - weekday_pattern$avg_impspi
+```
+
+The following plot shows the difference in steps per interval between weekend days and weekday days:
+
+
+```r
+qplot(x=unique(weekend_pattern$interval), 
+          y=delta, geom="col", 
+          xlab="Interval", 
+          ylab="Weekend Steps - Weekday Steps", 
+          main="Weekend Pattern vs. Weekday Pattern", 
+          ylim=c(-200, 200)
+    )
+```
+
+<img src="PA1_template_files/figure-html/unnamed-chunk-27-1.png" style="display: block; margin: auto;" />
+
+
+
+
+
